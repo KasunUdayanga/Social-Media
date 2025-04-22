@@ -13,6 +13,15 @@ interface User {
   email: string
   avatar?: string
   bio?: string
+  twoFactorEnabled?: boolean
+  securityQuestions?: boolean
+  lastLogin?: string
+  activeSessions?: {
+    id: string
+    device: string
+    location: string
+    lastActive: string
+  }[]
 }
 
 interface AuthContextType {
@@ -20,7 +29,9 @@ interface AuthContextType {
   loading: boolean
   login: (email: string, password: string) => Promise<void>
   register: (name: string, email: string, password: string) => Promise<void>
-  logout: () => Promise<void>
+  logout: (fromAllDevices?: boolean) => Promise<void>
+  updateUserSecurity: (settings: Partial<User>) => void
+  terminateSession: (sessionId: string) => void
 }
 
 export const AuthContext = createContext<AuthContextType>({
@@ -29,6 +40,8 @@ export const AuthContext = createContext<AuthContextType>({
   login: async () => {},
   register: async () => {},
   logout: async () => {},
+  updateUserSecurity: () => {},
+  terminateSession: () => {},
 })
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -44,7 +57,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const response = await fetch("/api/auth/me")
         if (response.ok) {
           const data = await response.json()
-          setUser(data.user)
+
+          // Add mock security data for demo purposes
+          const enhancedUser: User = {
+            ...data.user,
+            twoFactorEnabled: true,
+            securityQuestions: false,
+            lastLogin: new Date().toISOString(),
+            activeSessions: [
+              {
+                id: "session1",
+                device: "Current Browser",
+                location: "New York, USA",
+                lastActive: new Date().toISOString(),
+              },
+              {
+                id: "session2",
+                device: "Mobile App",
+                location: "San Francisco, USA",
+                lastActive: new Date(Date.now() - 86400000).toISOString(), // 1 day ago
+              },
+            ],
+          }
+
+          setUser(enhancedUser)
         }
       } catch (error) {
         console.error("Error checking authentication:", error)
@@ -60,7 +96,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       setLoading(true)
       const data = await loginApi(email, password)
-      setUser(data.user)
+
+      // Add mock security data for demo purposes
+      const enhancedUser: User = {
+        ...data.user,
+        twoFactorEnabled: true,
+        securityQuestions: false,
+        lastLogin: new Date().toISOString(),
+        activeSessions: [
+          {
+            id: "session1",
+            device: "Current Browser",
+            location: "New York, USA",
+            lastActive: new Date().toISOString(),
+          },
+          {
+            id: "session2",
+            device: "Mobile App",
+            location: "San Francisco, USA",
+            lastActive: new Date(Date.now() - 86400000).toISOString(), // 1 day ago
+          },
+        ],
+      }
+
+      setUser(enhancedUser)
+
       toast({
         title: "Login successful",
         description: `Welcome back, ${data.user.name}!`,
@@ -82,7 +142,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       setLoading(true)
       const data = await registerApi(name, email, password)
-      setUser(data.user)
+
+      // Add mock security data for demo purposes
+      const enhancedUser: User = {
+        ...data.user,
+        twoFactorEnabled: false,
+        securityQuestions: false,
+        lastLogin: new Date().toISOString(),
+        activeSessions: [
+          {
+            id: "session1",
+            device: "Current Browser",
+            location: "New York, USA",
+            lastActive: new Date().toISOString(),
+          },
+        ],
+      }
+
+      setUser(enhancedUser)
+
       toast({
         title: "Registration successful",
         description: `Welcome to DevConnect, ${data.user.name}!`,
@@ -100,7 +178,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
-  const logout = async () => {
+  const logout = async (fromAllDevices = false) => {
     try {
       await logoutApi()
       setUser(null)
@@ -119,5 +197,44 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
-  return <AuthContext.Provider value={{ user, loading, login, register, logout }}>{children}</AuthContext.Provider>
+  const updateUserSecurity = (settings: Partial<User>) => {
+    if (user) {
+      const updatedUser = { ...user, ...settings }
+      setUser(updatedUser)
+
+      toast({
+        title: "Settings updated",
+        description: "Your security settings have been updated",
+      })
+    }
+  }
+
+  const terminateSession = (sessionId: string) => {
+    if (user && user.activeSessions) {
+      const updatedSessions = user.activeSessions.filter((session) => session.id !== sessionId)
+      const updatedUser = { ...user, activeSessions: updatedSessions }
+      setUser(updatedUser)
+
+      toast({
+        title: "Session terminated",
+        description: "The session has been successfully terminated",
+      })
+    }
+  }
+
+  return (
+    <AuthContext.Provider
+      value={{
+        user,
+        loading,
+        login,
+        register,
+        logout,
+        updateUserSecurity,
+        terminateSession,
+      }}
+    >
+      {children}
+    </AuthContext.Provider>
+  )
 }

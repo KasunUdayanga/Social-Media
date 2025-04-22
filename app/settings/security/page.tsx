@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Switch } from "@/components/ui/switch"
 import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
-import { useAuth } from "@/components/auth-context"
+import { useAuth } from "@/hooks/use-auth"
 import {
   ShieldCheck,
   Smartphone,
